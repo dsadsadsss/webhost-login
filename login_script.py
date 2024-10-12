@@ -1,133 +1,68 @@
-import json
-import asyncio
-from pyppeteer import launch
-from datetime import datetime, timedelta
-import aiofiles
-import random
-import requests
+from playwright.sync_api import sync_playwright
 import os
+import requests
 
-# 从环境变量中获取 Telegram Bot Token 和 Chat ID
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+def send_telegram_message(message):
+    bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    response = requests.post(url, json=payload)
+    return response.json()
 
-def format_to_iso(date):
-    return date.strftime('%Y-%m-%d %H:%M:%S')
+def login_koyeb(email, password):
+    with sync_playwright() as p:
+        browser = p.firefox.launch(headless=True)
+        page = browser.new_page()
 
-async def delay_time(ms):
-    await asyncio.sleep(ms / 1000)
+        # 访问Koyeb登录页面
+        page.goto("https://webhostmost.com/login")
 
-# 全局浏览器实例
-browser = None
+        # 输入邮箱和密码
+        page.get_by_placeholder("Enter email").click()
+        page.get_by_placeholder("Enter email").fill(email)
+        page.get_by_placeholder("Password").click()
+        page.get_by_placeholder("Password").fill(password)
+    
+        # 点击登录按钮
+        page.get_by_role("button", name="Login").click()
 
-# telegram消息
-message = 'serv00&ct8自动化脚本运行\n'
+        # 等待可能出现的错误消息或成功登录后的页面
+        try:
+            # 等待可能的错误消息
+            error_message = page.wait_for_selector('.MuiAlert-message', timeout=5000)
+            if error_message:
+                error_text = error_message.inner_text()
+                return f"账号 {email} 登录失败: {error_text}"
+        except:
+            # 如果没有找到错误消息,检查是否已经跳转到仪表板页面
+            try:
+                page.wait_for_url("https://webhostmost.com/clientarea.php", timeout=5000)
+                return f"账号 {email} 登录成功!"
+            except:
+                return f"账号 {email} 登录失败: 未能跳转到仪表板页面"
+        finally:
+            browser.close()
 
-async def login(username, password, panel):
-    global browser
-
-    page = None  # 确保 page 在任何情况下都被定义
-    serviceName = 'ct8' if 'ct8' in panel else 'serv00'
-    try:
-        if not browser:
-            browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-
-        page = await browser.newPage()
-        url = f'https://{panel}/login/?next=/'
-        await page.goto(url)
-
-        username_input = await page.querySelector('#id_username')
-        if username_input:
-            await page.evaluate('''(input) => input.value = ""''', username_input)
-
-        await page.type('#id_username', username)
-        await page.type('#id_password', password)
-
-        login_button = await page.querySelector('#submit')
-        if login_button:
-            await login_button.click()
-        else:
-            raise Exception('无法找到登录按钮')
-
-        await page.waitForNavigation()
-
-        is_logged_in = await page.evaluate('''() => {
-            const logoutButton = document.querySelector('a[href="/logout/"]');
-            return logoutButton !== null;
-        }''')
-
-        return is_logged_in
-
-    except Exception as e:
-        print(f'{serviceName}账号 {username} 登录时出现错误: {e}')
-        return False
-
-    finally:
-        if page:
-            await page.close()
-
-async def main():
-    global message
-    message = 'serv00&ct8自动化脚本运行\n'
-
-    try:
-        async with aiofiles.open('accounts.json', mode='r', encoding='utf-8') as f:
-            accounts_json = await f.read()
-        accounts = json.loads(accounts_json)
-    except Exception as e:
-        print(f'读取 accounts.json 文件时出错: {e}')
-        return
+if __name__ == "__main__":
+    accounts = os.environ.get('WEBHOST', '').split(' ')
+    login_statuses = []
 
     for account in accounts:
-        username = account['username']
-        password = account['password']
-        panel = account['panel']
+        email, password = account.split(':')
+        status = login_koyeb(email, password)
+        login_statuses.append(status)
+        print(status)
 
-        serviceName = 'ct8' if 'ct8' in panel else 'serv00'
-        is_logged_in = await login(username, password, panel)
-
-        if is_logged_in:
-            now_utc = format_to_iso(datetime.utcnow())
-            now_beijing = format_to_iso(datetime.utcnow() + timedelta(hours=8))
-            success_message = f'{serviceName}账号 {username} 于北京时间 {now_beijing}（UTC时间 {now_utc}）登录成功！'
-            message += success_message + '\n'
-            print(success_message)
-        else:
-            message += f'{serviceName}账号 {username} 登录失败，请检查{serviceName}账号和密码是否正确。\n'
-            print(f'{serviceName}账号 {username} 登录失败，请检查{serviceName}账号和密码是否正确。')
-
-        delay = random.randint(1000, 8000)
-        await delay_time(delay)
-        
-    message += f'所有{serviceName}账号登录完成！'
-    await send_telegram_message(message)
-    print(f'所有{serviceName}账号登录完成！')
-
-async def send_telegram_message(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'text': message,
-        'reply_markup': {
-            'inline_keyboard': [
-                [
-                    {
-                        'text': '问题反馈❓',
-                        'url': 'https://t.me/yxjsjl'
-                    }
-                ]
-            ]
-        }
-    }
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code != 200:
-            print(f"发送消息到Telegram失败: {response.text}")
-    except Exception as e:
-        print(f"发送消息到Telegram时出错: {e}")
-
-if __name__ == '__main__':
-    asyncio.run(main())
+    if login_statuses:
+        message = "WEBHOST登录状态:\n\n" + "\n".join(login_statuses)
+        result = send_telegram_message(message)
+        print("消息已发送到Telegram:", result)
+    else:
+        error_message = "没有配置任何账号"
+        send_telegram_message(error_message)
+        print(error_message)
