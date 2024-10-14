@@ -23,7 +23,7 @@ jobs:
       - name: 设置 Python 环境
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'  # 建议使用具体的 Python 版本
+          python-version: '3.10'
 
       - name: 安装依赖
         run: |
