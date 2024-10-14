@@ -19,7 +19,7 @@ def login_koyeb(email, password):
         browser = p.firefox.launch(headless=True)
         page = browser.new_page()
 
-        # 访问Koyeb登录页面
+        # 访问登录页面
         page.goto("https://webhostmost.com/login")
 
         # 输入邮箱和密码
