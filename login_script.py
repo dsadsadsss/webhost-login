@@ -49,7 +49,7 @@ def login_koyeb(email, password):
             browser.close()
 
 if __name__ == "__main__":
-    accounts = os.environ.get('WEBHOST', '').split(' ')
+    accounts = os.environ.get('WEBHOST', '').split()
     login_statuses = []
 
     for account in accounts:
