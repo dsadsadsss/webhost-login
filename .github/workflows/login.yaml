@@ -15,6 +15,12 @@ jobs:
     steps:
       - name: Checkout 仓库代码
         uses: actions/checkout@v2
+        
+      - name: Set up WARP
+        uses: fscarmen/warp-on-actions@v1.3
+        with:
+           stack: dual        # Optional. Support [ ipv4, ipv6, dual ]. Default is dual.
+           mode: wireguard    # Optional. Support [ wireguard, client ]. Default is wireguard.
 
       - name: 安装 Playwright 所需依赖
         run: |
