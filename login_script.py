@@ -6,12 +6,12 @@ from typing import Tuple
 
 def send_telegram_message(message: str) -> dict:
     """
-    Send a message to Telegram using bot API
+    使用bot API发送Telegram消息
     
-    Args:
-        message: The message to send
-    Returns:
-        dict: Telegram API response
+    参数:
+        message: 要发送的消息
+    返回:
+        dict: Telegram API响应
     """
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
@@ -26,54 +26,54 @@ def send_telegram_message(message: str) -> dict:
 
 def attempt_login(page, email: str, password: str) -> Tuple[bool, str]:
     """
-    Single attempt to login to WebHost account
+    尝试登录WebHost账户
     
-    Args:
-        page: Playwright page object
-        email: User email
-        password: User password
-    Returns:
-        Tuple[bool, str]: (success status, message)
+    参数:
+        page: Playwright页面对象
+        email: 用户邮箱
+        password: 用户密码
+    返回:
+        Tuple[bool, str]: (成功状态, 消息)
     """
     try:
-        # Navigate to login page
+        # 导航到登录页面
         page.goto("https://webhostmost.com/login")
         
-        # Fill login form
+        # 填写登录表单
         page.get_by_placeholder("Enter email").click()
         page.get_by_placeholder("Enter email").fill(email)
         page.get_by_placeholder("Password").click()
         page.get_by_placeholder("Password").fill(password)
         
-        # Submit login form
+        # 提交登录表单
         page.get_by_role("button", name="Login").click()
         
-        # Check for error message
+        # 检查错误消息
         try:
             error_message = page.wait_for_selector('.MuiAlert-message', timeout=5000)
             if error_message:
                 error_text = error_message.inner_text()
-                return False, f"Login failed: {error_text}"
+                return False, f"登录失败：{error_text}"
         except TimeoutError:
-            # Check for successful redirect to dashboard
+            # 检查是否成功重定向到仪表板
             try:
                 page.wait_for_url("https://webhostmost.com/clientarea.php", timeout=5000)
-                return True, "Login successful!"
+                return True, "登录成功！"
             except TimeoutError:
-                return False, "Login failed: Could not redirect to dashboard"
+                return False, "登录失败：无法重定向到仪表板"
     except Exception as e:
-        return False, f"Login attempt failed: {str(e)}"
+        return False, f"登录尝试失败：{str(e)}"
 
 def login_webhost(email: str, password: str, max_retries: int = 5) -> str:
     """
-    Attempt to login to WebHost account with retry mechanism
+    尝试使用重试机制登录WebHost账户
     
-    Args:
-        email: User email
-        password: User password
-        max_retries: Maximum number of retry attempts
-    Returns:
-        str: Status message
+    参数:
+        email: 用户邮箱
+        password: 用户密码
+        max_retries: 最大重试次数
+    返回:
+        str: 状态消息
     """
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True)
@@ -84,41 +84,41 @@ def login_webhost(email: str, password: str, max_retries: int = 5) -> str:
             try:
                 success, message = attempt_login(page, email, password)
                 if success:
-                    return f"Account {email} - {message} (attempt {attempt}/{max_retries})"
+                    return f"账户 {email} - {message}（第 {attempt}/{max_retries} 次尝试）"
                 
-                # If not successful and we have more retries
+                # 如果不成功且还有重试机会
                 if attempt < max_retries:
-                    print(f"Retry {attempt}/{max_retries} for {email}: {message}")
-                    time.sleep(2 * attempt)  # Exponential backoff
+                    print(f"账户 {email} 的第 {attempt}/{max_retries} 次重试：{message}")
+                    time.sleep(2 * attempt)  # 指数退避
                 else:
-                    return f"Account {email} - All {max_retries} attempts failed. Last error: {message}"
+                    return f"账户 {email} - 所有 {max_retries} 次尝试均失败。最后错误：{message}"
                 
             except Exception as e:
                 if attempt == max_retries:
-                    return f"Account {email} - Fatal error after {max_retries} attempts: {str(e)}"
+                    return f"账户 {email} - {max_retries} 次尝试后发生致命错误：{str(e)}"
             
             attempt += 1
         
         browser.close()
 
 if __name__ == "__main__":
-    # Get accounts from environment variable
+    # 从环境变量获取账户信息
     accounts = os.environ.get('WEBHOST', '').split()
     login_statuses = []
     
-    # Process each account
+    # 处理每个账户
     for account in accounts:
         email, password = account.split(':')
         status = login_webhost(email, password)
         login_statuses.append(status)
         print(status)
     
-    # Send results to Telegram
+    # 发送结果到Telegram
     if login_statuses:
-        message = "WEBHOST Login Status:\n\n" + "\n".join(login_statuses)
+        message = "WEBHOST 登录状态：\n\n" + "\n".join(login_statuses)
         result = send_telegram_message(message)
-        print("Message sent to Telegram:", result)
+        print("消息已发送到Telegram：", result)
     else:
-        error_message = "No accounts configured"
+        error_message = "未配置任何账户"
         send_telegram_message(error_message)
         print(error_message)
