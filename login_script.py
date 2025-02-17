@@ -3,8 +3,6 @@ import os
 import requests
 import time
 from typing import Tuple
-import urllib.parse
-import random
 
 def send_telegram_message(message: str) -> dict:
     """
@@ -39,8 +37,8 @@ def attempt_login(page, email: str, password: str) -> Tuple[bool, str]:
     """
     try:
         # 导航到登录页面
-        page.goto("https://webhostmost.com/login")
-        
+        page.goto("https://client.webhostmost.com/login")
+        time.sleep(5)
         # 填写登录表单
         page.get_by_placeholder("Enter email").click()
         page.get_by_placeholder("Enter email").fill(email)
@@ -49,7 +47,7 @@ def attempt_login(page, email: str, password: str) -> Tuple[bool, str]:
         
         # 提交登录表单
         page.get_by_role("button", name="Login").click()
-        
+        time.sleep(10)
         # 检查错误消息
         try:
             error_message = page.wait_for_selector('.MuiAlert-message', timeout=5000)
@@ -77,52 +75,8 @@ def login_webhost(email: str, password: str, max_retries: int = 5) -> str:
     返回:
         str: 状态消息
     """
-    proxy_urls_str = os.environ.get("PROXY_URLS")
-
     with sync_playwright() as p:
-        launch_options = {
-            "headless": True,
-        }
-
-        if proxy_urls_str:
-            proxy_urls = [url.strip() for url in proxy_urls_str.split(';')]  # 分割代理URL, 去除空格
-            if proxy_urls:
-                # 随机选择一个代理
-                selected_proxy_url = random.choice(proxy_urls)
-                print(f"使用随机选择的代理: {selected_proxy_url}")
-                try:
-                    # 解析代理 URL
-                    parsed_url = urllib.parse.urlparse(selected_proxy_url)
-
-                    # 检查URL是否有效.
-                    if parsed_url.scheme and parsed_url.netloc:
-                        # 获取用户名和密码
-                        if parsed_url.username is not None and parsed_url.password is not None:
-
-                            proxy_server = f"{parsed_url.scheme}://{parsed_url.netloc}"  # 构建server地址
-                            proxy_username = parsed_url.username
-                            proxy_password = parsed_url.password
-                            launch_options["proxy"] = {
-                                "server": proxy_server,
-                                "username": proxy_username,
-                                "password": proxy_password,
-                            }
-                            print(f"使用代理服务器: {proxy_server}")
-                        else:
-                            print(f"代理URL格式错误，缺少用户名或密码: {selected_proxy_url}")
-                    else:
-                        print(f"代理URL格式错误: {selected_proxy_url}")
-
-                except Exception as e:
-                    print(f"代理URL解析错误: {e}")
-            else:
-                print("未配置任何代理服务器.") # 没有分割出代理
-
-        else:
-            print("未配置代理服务器, 将使用无代理连接")
-
-
-        browser = p.firefox.launch(**launch_options)
+        browser = p.firefox.launch(headless=True)
         page = browser.new_page()
         
         attempt = 1

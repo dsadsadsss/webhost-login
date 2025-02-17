@@ -22,8 +22,6 @@
     - 点击 `Settings`，然后在左侧菜单中选择 `Secrets`。
     - 添加以下 Secrets：
         - `WEBHOST`: 账号信息,格式 账号1:密码 账号2:密码 账号3:密码
-        - `PROXY_URLS`:代理，多个用;隔开，格式支持:无认证：socks5://127.0.0.1:1080 或http://proxy.com:8080
-带认证：socks5://user:pass@127.0.0.1:1080 或 http://user:pass@proxy.com:8080
         - `TELEGRAM_BOT_TOKEN`: 你的 Telegram Bot 的 API Token。
         - `TELEGRAM_CHAT_ID`: 你的 Telegram Chat ID。
 
