@@ -3,14 +3,14 @@ name: Run Login Script
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 */3 * *"  # 每3天运行一次
+    - cron: "0 0 */5 * *"  # 每5天运行一次
   push:
     branches:
       - main
 
 jobs:
   login:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout 仓库代码
@@ -28,18 +28,22 @@ jobs:
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
-          pip install playwright aiofiles requests PySocks
+          pip install playwright aiofiles requests
 
       - name: Install Playwright Browsers  # 安装浏览器
         run: |
-          playwright install
+          playwright install firefox
           
+      - name: Set up WARP
+        uses: fscarmen/warp-on-actions@v1.3
+        with:
+           stack: dual        # Optional. Support [ ipv4, ipv6, dual ]. Default is dual.
+           mode: client    # Optional. Support [ wireguard, client ]. Default is wireguard.
 
       - name: 运行登录脚本
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WEBHOST: ${{ secrets.WEBHOST }}
-          PROXY_URLS: ${{ secrets.PROXY_URLS }}   
         run: |
           python login_script.py
